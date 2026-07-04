@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FreshCheck — Live Demo</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f5f5f3;
+      --color-background-danger: #fcebeb;
+      --color-background-success: #eaf3de;
+      --color-text-primary: #1a1a18;
+      --color-text-secondary: #6b6b68;
+      --color-text-tertiary: #9c9a92;
+      --color-text-danger: #a32d2d;
+      --color-text-success: #3b6d11;
+      --color-border-tertiary: rgba(0,0,0,0.12);
+      --color-border-secondary: rgba(0,0,0,0.22);
+      --color-border-danger: #f09595;
+      --color-border-success: #97c459;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-background-primary: #1c1c1a;
+        --color-background-secondary: #262624;
+        --color-background-danger: #501313;
+        --color-background-success: #173404;
+        --color-text-primary: #e8e6dc;
+        --color-text-secondary: #9c9a92;
+        --color-text-tertiary: #6b6b68;
+        --color-text-danger: #f09595;
+        --color-text-success: #97c459;
+        --color-border-tertiary: rgba(255,255,255,0.1);
+        --color-border-secondary: rgba(255,255,255,0.2);
+        --color-border-danger: #791f1f;
+        --color-border-success: #27500a;
+      }
+    }
+    body {
+      background: var(--color-background-secondary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px 16px 48px;
+    }
+    #app { width: 100%; max-width: 400px; }
+
+    /* Component styles */
+    .fc-btn { width:100%; border:none; border-radius:10px; padding:13px 0; font-size:15px; font-weight:500; cursor:pointer; font-family:var(--font-sans); transition:opacity 0.15s; }
+    .fc-btn:active { opacity:0.85; }
+    .fc-btn-primary { background:#FF5200; color:#fff; }
+    .fc-btn-secondary { background:transparent; color:var(--color-text-secondary); border:0.5px solid var(--color-border-secondary); }
+    .scan-item { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; transition:all 0.35s; }
+    .progress-bar { height:4px; background:var(--color-border-tertiary); border-radius:99px; overflow:hidden; margin-bottom:20px; }
+    .progress-fill { height:100%; background:#FF5200; border-radius:99px; transition:width 0.4s ease; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .scanning-icon { animation: pulse 1.2s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+<div id="app"><div id="root"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const { useState, useCallback } = React;
+const ORANGE = "#FF5200";
+const OL = "rgba(255,82,0,0.09)";
+const OB = "rgba(255,82,0,0.25)";
+
+const ITEMS = [
+  { id:1, name:"Amul Paneer", variant:"200g", price:89, qty:1, bg:"#E1F5EE", letter:"A", textCol:"#085041", daysLeft:2, risk:true,  swap:{ name:"Nestle Paneer",    variant:"200g", price:94,  daysLeft:11 } },
+  { id:2, name:"Fresho Tomatoes", variant:"500g", price:35, qty:2, bg:"#FCEBEB", letter:"F", textCol:"#791F1F", daysLeft:6, risk:false, swap:null },
+  { id:3, name:"Mother Dairy Milk", variant:"Toned 1L", price:64, qty:1, bg:"#E6F1FB", letter:"M", textCol:"#0C447C", daysLeft:1, risk:true,  swap:{ name:"Amul Toned Milk", variant:"1L",    price:67,  daysLeft:2 } },
+  { id:4, name:"Lays Classic", variant:"Salted 52g", price:20, qty:3, bg:"#FAEEDA", letter:"L", textCol:"#633806", daysLeft:80, risk:false, swap:null },
+  { id:5, name:"Haldiram's Bhujia", variant:"200g", price:65, qty:1, bg:"#EEEDFE", letter:"H", textCol:"#3C3489", daysLeft:145, risk:false, swap:null },
+];
+
+function Avatar({ item }) {
+  return React.createElement("div", {
+    style:{ width:44,height:44,borderRadius:10,background:item.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:500,color:item.textCol,flexShrink:0 }
+  }, item.letter);
+}
+
+function Phone({ children }) {
+  return React.createElement("div", {
+    style:{ maxWidth:340,margin:"0 auto",background:"var(--color-background-primary)",borderRadius:24,border:"0.5px solid var(--color-border-tertiary)",overflow:"hidden",minHeight:560,display:"flex",flexDirection:"column" }
+  }, children);
+}
+
+function TopBar({ icon, title, sub }) {
+  return React.createElement("div", { style:{ background:ORANGE, padding:"14px 16px", display:"flex", alignItems:"center", gap:8, flexShrink:0 } },
+    React.createElement("i", { className:`ti ti-${icon}`, style:{ fontSize:20, color:"#fff" } }),
+    React.createElement("span", { style:{ fontSize:16, fontWeight:500, color:"#fff" } }, title),
+    sub && React.createElement("span", { style:{ marginLeft:"auto", fontSize:11, color:"rgba(255,255,255,0.85)", background:"rgba(255,255,255,0.18)", borderRadius:99, padding:"2px 9px" } }, sub)
+  );
+}
+
+function CartScreen({ onCheckout }) {
+  const total = ITEMS.reduce((s,i) => s+i.price*i.qty, 0);
+  return React.createElement(Phone, null,
+    React.createElement(TopBar, { icon:"shopping-bag", title:"My cart", sub:"Instamart" }),
+    React.createElement("div", { style:{ padding:"10px 14px 0", flexShrink:0 } },
+      React.createElement("div", { style:{ background:OL, border:`0.5px solid ${OB}`, borderRadius:8, padding:"8px 12px", display:"flex", alignItems:"center", gap:7 } },
+        React.createElement("i", { className:"ti ti-shield-check", style:{ fontSize:14, color:ORANGE } }),
+        React.createElement("span", { style:{ fontSize:12, color:ORANGE, fontWeight:500 } }, "FreshCheck is active — scans before you pay")
+      )
+    ),
+    React.createElement("div", { style:{ padding:"6px 14px", flex:1, overflowY:"auto" } },
+      ITEMS.map(item =>
+        React.createElement("div", { key:item.id, style:{ display:"flex", alignItems:"center", gap:11, padding:"10px 0", borderBottom:"0.5px solid var(--color-border-tertiary)" } },
+          React.createElement(Avatar, { item }),
+          React.createElement("div", { style:{ flex:1 } },
+            React.createElement("p", { style:{ margin:0, fontSize:13.5, fontWeight:500, color:"var(--color-text-primary)" } }, item.name),
+            React.createElement("p", { style:{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-secondary)" } }, item.variant)
+          ),
+          React.createElement("div", { style:{ textAlign:"right" } },
+            React.createElement("p", { style:{ margin:0, fontSize:13.5, fontWeight:500, color:"var(--color-text-primary)" } }, "₹"+(item.price*item.qty)),
+            React.createElement("p", { style:{ margin:"2px 0 0", fontSize:11, color:"var(--color-text-tertiary)" } }, "qty: "+item.qty)
+          )
+        )
+      )
+    ),
+    React.createElement("div", { style:{ padding:"10px 14px 16px", flexShrink:0 } },
+      React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", marginBottom:10 } },
+        React.createElement("span", { style:{ fontSize:13, color:"var(--color-text-secondary)" } }, "Item total"),
+        React.createElement("span", { style:{ fontSize:13, fontWeight:500, color:"var(--color-text-primary)" } }, "₹"+total)
+      ),
+      React.createElement("button", { className:"fc-btn fc-btn-primary", onClick:onCheckout }, "Proceed to pay  ₹"+total)
+    )
+  );
+}
+
+function ScanScreen({ scanned }) {
+  const pct = Math.round((scanned.length/ITEMS.length)*100);
+  return React.createElement(Phone, null,
+    React.createElement(TopBar, { icon:"shield-check", title:"FreshCheck scanning..." }),
+    React.createElement("div", { style:{ padding:"24px 16px 0", textAlign:"center", flexShrink:0 } },
+      React.createElement("div", { className:"scanning-icon", style:{ width:60,height:60,borderRadius:"50%",background:OL,border:`2px solid ${ORANGE}`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px" } },
+        React.createElement("i", { className:"ti ti-scan", style:{ fontSize:28, color:ORANGE } })
+      ),
+      React.createElement("p", { style:{ margin:"0 0 4px", fontSize:14, fontWeight:500, color:"var(--color-text-primary)" } }, "Checking freshness of your items"),
+      React.createElement("p", { style:{ margin:"0 0 16px", fontSize:12, color:"var(--color-text-secondary)" } }, "Fetching batch data via Swiggy MCP"),
+      React.createElement("div", { className:"progress-bar" },
+        React.createElement("div", { className:"progress-fill", style:{ width:pct+"%" } })
+      )
+    ),
+    React.createElement("div", { style:{ padding:"0 14px 20px", flex:1, display:"flex", flexDirection:"column", gap:6 } },
+      ITEMS.map(item => {
+        const done = scanned.includes(item.id);
+        return React.createElement("div", { key:item.id, className:"scan-item", style:{ background: done ? "var(--color-background-secondary)" : "transparent", opacity: done ? 1 : 0.3 } },
+          React.createElement(Avatar, { item }),
+          React.createElement("div", { style:{ flex:1 } },
+            React.createElement("p", { style:{ margin:0, fontSize:13, fontWeight:500, color:"var(--color-text-primary)" } }, item.name),
+            React.createElement("p", { style:{ margin:0, fontSize:11, color:"var(--color-text-secondary)" } }, item.variant)
+          ),
+          done && React.createElement("div", { style:{ width:26,height:26,borderRadius:"50%",background: item.risk ? "var(--color-background-danger)" : "var(--color-background-success)",display:"flex",alignItems:"center",justifyContent:"center" } },
+            React.createElement("i", { className:`ti ti-${item.risk ? "alert-triangle" : "check"}`, style:{ fontSize:13, color: item.risk ? "var(--color-text-danger)" : "var(--color-text-success)" } })
+          )
+        );
+      })
+    )
+  );
+}
+
+function ResultsScreen({ swapped, onSwap, onContinue }) {
+  const risky = ITEMS.filter(i => i.risk);
+  const ok = ITEMS.filter(i => !i.risk);
+  const swappedCount = Object.values(swapped).filter(Boolean).length;
+  return React.createElement(Phone, null,
+    React.createElement(TopBar, { icon:"shield-check", title:"FreshCheck results" }),
+    React.createElement("div", { style:{ padding:"12px 14px", flex:1, overflowY:"auto" } },
+      React.createElement("div", { style:{ background:"var(--color-background-danger)", border:"0.5px solid var(--color-border-danger)", borderRadius:10, padding:"10px 12px", marginBottom:12, display:"flex", alignItems:"center", gap:10 } },
+        React.createElement("i", { className:"ti ti-alert-triangle", style:{ fontSize:18, color:"var(--color-text-danger)", flexShrink:0 } }),
+        React.createElement("div", null,
+          React.createElement("p", { style:{ margin:0, fontSize:13, fontWeight:500, color:"var(--color-text-danger)" } }, risky.length+" items may expire very soon"),
+          React.createElement("p", { style:{ margin:"2px 0 0", fontSize:11.5, color:"var(--color-text-secondary)" } }, "Swap for a fresher batch — one tap")
+        )
+      ),
+      risky.map(item => {
+        const isSwapped = swapped[item.id];
+        return React.createElement("div", { key:item.id, style:{ border:`0.5px solid ${isSwapped ? "var(--color-border-success)" : "var(--color-border-danger)"}`, borderRadius:12, padding:"11px 12px", marginBottom:10, background: isSwapped ? "var(--color-background-success)" : "var(--color-background-danger)" } },
+          React.createElement("div", { style:{ display:"flex", alignItems:"center", gap:10, marginBottom: isSwapped ? 0 : 8 } },
+            React.createElement(Avatar, { item }),
+            React.createElement("div", { style:{ flex:1 } },
+              React.createElement("p", { style:{ margin:0, fontSize:13, fontWeight:500, color:"var(--color-text-primary)" } }, item.name+" "+item.variant),
+              isSwapped
+                ? React.createElement("p", { style:{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-success)" } },
+                    React.createElement("i", { className:"ti ti-check", style:{ fontSize:12, marginRight:3 } }),
+                    "Swapped — "+item.swap.daysLeft+" days fresh"
+                  )
+                : React.createElement("p", { style:{ margin:"2px 0 0", fontSize:12, color:"var(--color-text-danger)" } },
+                    React.createElement("i", { className:"ti ti-clock", style:{ fontSize:12, marginRight:3 } }),
+                    "Only "+item.daysLeft+" day"+(item.daysLeft>1?"s":"")+" left"
+                  )
+            )
+          ),
+          !isSwapped && item.swap && React.createElement("div", { style:{ background:"var(--color-background-primary)", borderRadius:8, padding:"9px 10px", display:"flex", alignItems:"center", gap:8 } },
+            React.createElement("i", { className:"ti ti-refresh", style:{ fontSize:14, color:ORANGE } }),
+            React.createElement("div", { style:{ flex:1 } },
+              React.createElement("p", { style:{ margin:0, fontSize:11, color:"var(--color-text-secondary)" } }, "Swap with"),
+              React.createElement("p", { style:{ margin:0, fontSize:12.5, fontWeight:500, color:"var(--color-text-primary)" } }, item.swap.name+" — "+item.swap.daysLeft+" days fresh")
+            ),
+            React.createElement("button", { onClick:() => onSwap(item.id), style:{ background:ORANGE, color:"#fff", border:"none", borderRadius:7, padding:"6px 12px", fontSize:12, fontWeight:500, cursor:"pointer", fontFamily:"var(--font-sans)" } },
+              "Swap +"+(item.swap.price > item.price ? "₹"+(item.swap.price-item.price) : "free")
+            )
+          )
+        );
+      }),
+      React.createElement("p", { style:{ margin:"4px 0 6px", fontSize:10, color:"var(--color-text-tertiary)", textTransform:"uppercase", letterSpacing:"0.07em", fontWeight:500 } }, "Fresh and good to go"),
+      React.createElement("div", { style:{ display:"flex", flexDirection:"column", gap:6, marginBottom:14 } },
+        ok.map(item =>
+          React.createElement("div", { key:item.id, style:{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px", background:"var(--color-background-secondary)", borderRadius:8 } },
+            React.createElement(Avatar, { item }),
+            React.createElement("p", { style:{ margin:0, fontSize:13, color:"var(--color-text-primary)", flex:1 } }, item.name+" "+item.variant),
+            React.createElement("i", { className:"ti ti-circle-check", style:{ fontSize:16, color:"var(--color-text-success)" } })
+          )
+        )
+      )
+    ),
+    React.createElement("div", { style:{ padding:"0 14px 14px", flexShrink:0 } },
+      React.createElement("button", { className:"fc-btn fc-btn-primary", onClick:onContinue },
+        swappedCount > 0 ? "Continue with "+swappedCount+" swap"+(swappedCount>1?"s":"") : "Skip — continue without swapping"
+      )
+    )
+  );
+}
+
+function DoneScreen({ swapped, onRestart }) {
+  const swapCount = Object.values(swapped).filter(Boolean).length;
+  const total = ITEMS.reduce((s,i) => {
+    if (swapped[i.id] && i.swap) return s + i.swap.price*i.qty;
+    return s + i.price*i.qty;
+  }, 0);
+  return React.createElement(Phone, null,
+    React.createElement(TopBar, { icon:"shopping-bag", title:"Order summary" }),
+    React.createElement("div", { style:{ padding:"28px 16px", flex:1, display:"flex", flexDirection:"column", alignItems:"center" } },
+      React.createElement("div", { style:{ width:68,height:68,borderRadius:"50%",background:"var(--color-background-success)",border:"0.5px solid var(--color-border-success)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14 } },
+        React.createElement("i", { className:"ti ti-shield-check", style:{ fontSize:32, color:"var(--color-text-success)" } })
+      ),
+      React.createElement("p", { style:{ margin:"0 0 4px", fontSize:17, fontWeight:500, color:"var(--color-text-primary)" } }, "Your cart is fresh!"),
+      React.createElement("p", { style:{ margin:"0 0 20px", fontSize:13, color:"var(--color-text-secondary)", textAlign:"center" } },
+        swapCount > 0
+          ? swapCount+" item"+(swapCount>1?"s":"")+" swapped for fresher batches"
+          : "FreshCheck scanned — you chose to keep originals"
+      ),
+      React.createElement("div", { style:{ width:"100%", background:"var(--color-background-secondary)", borderRadius:12, padding:"12px 14px", marginBottom:18 } },
+        ITEMS.map(item => {
+          const wasSwapped = swapped[item.id] && item.swap;
+          const n = wasSwapped ? item.swap.name : item.name;
+          const p = wasSwapped ? item.swap.price : item.price;
+          return React.createElement("div", { key:item.id, style:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", borderBottom:"0.5px solid var(--color-border-tertiary)" } },
+            React.createElement("div", { style:{ display:"flex", alignItems:"center", gap:6 } },
+              React.createElement("span", { style:{ fontSize:13, color:"var(--color-text-primary)" } }, n),
+              wasSwapped && React.createElement("span", { style:{ fontSize:10, color:"var(--color-text-success)", background:"var(--color-background-success)", borderRadius:99, padding:"1px 6px", fontWeight:500 } }, "fresh")
+            ),
+            React.createElement("span", { style:{ fontSize:13, color:"var(--color-text-primary)" } }, "₹"+(p*item.qty))
+          );
+        }),
+        React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", paddingTop:8 } },
+          React.createElement("span", { style:{ fontSize:14, fontWeight:500, color:"var(--color-text-primary)" } }, "Total"),
+          React.createElement("span", { style:{ fontSize:14, fontWeight:500, color:"var(--color-text-primary)" } }, "₹"+total)
+        )
+      ),
+      React.createElement("button", { className:"fc-btn fc-btn-primary", style:{ marginBottom:10 } }, "Place order  ₹"+total),
+      React.createElement("button", { className:"fc-btn fc-btn-secondary", onClick:onRestart }, "Try demo again")
+    )
+  );
+}
+
+function App() {
+  const [screen, setScreen] = useState("cart");
+  const [scanned, setScanned] = useState([]);
+  const [swapped, setSwapped] = useState({});
+
+  const startScan = useCallback(() => {
+    setScreen("scanning");
+    setScanned([]);
+    ITEMS.forEach((item, idx) => {
+      setTimeout(() => {
+        setScanned(prev => [...prev, item.id]);
+        if (idx === ITEMS.length - 1) {
+          setTimeout(() => setScreen("results"), 900);
+        }
+      }, 400 + idx * 600);
+    });
+  }, []);
+
+  const reset = useCallback(() => {
+    setScreen("cart");
+    setScanned([]);
+    setSwapped({});
+  }, []);
+
+  return React.createElement("div", { style:{ padding:"0.5rem 0 1rem" } },
+    React.createElement("div", { style:{ textAlign:"center", marginBottom:10 } },
+      React.createElement("span", { style:{ fontSize:10, fontWeight:500, textTransform:"uppercase", letterSpacing:"0.1em", color:"var(--color-text-tertiary)" } }, "FreshCheck — live demo")
+    ),
+    screen === "cart"     && React.createElement(CartScreen,    { onCheckout: startScan }),
+    screen === "scanning" && React.createElement(ScanScreen,    { scanned }),
+    screen === "results"  && React.createElement(ResultsScreen, { swapped, onSwap:(id)=>setSwapped(p=>({...p,[id]:true})), onContinue:()=>setScreen("done") }),
+    screen === "done"     && React.createElement(DoneScreen,    { swapped, onRestart: reset })
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
